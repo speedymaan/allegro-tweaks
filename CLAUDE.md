@@ -1,0 +1,39 @@
+# CLAUDE.md
+
+Guidance for Claude (and humans) working on this repo.
+
+## Rule: keep the docs in sync
+
+**Every change to this repo must also update `CLAUDE.md` and `README.md`** when the change affects what they describe (features, behaviour, limits, file names, how it works, how to test). Also bump `@version` in the userscript header for every change to the script, or Tampermonkey won't auto-update.
+
+## What this is
+
+`allegro-tweaks.user.js` is a single Tampermonkey userscript for allegro.hu (repo: https://github.com/speedymaan/allegro-tweaks). It has no build step and no dependencies. Tampermonkey auto-updates from the raw GitHub URL in `@updateURL`.
+
+It runs on all `https://allegro.hu/*` pages and is active only on search (`/kereses…`) and category (`/kategoria/…`) paths. Allegro navigates without full reloads, so a `MutationObserver` re-checks the page after every DOM change, batched with `queueMicrotask`. Don't use `requestAnimationFrame`: it doesn't fire in background tabs.
+
+### Part 1: hide ads
+
+- Ads are detected by the label button `button[aria-label^="Szponzorált"]` / `[aria-label^="Reklámozott"]` inside each `<article>`, with the exact visible label text as a fallback. **Never rely on Allegro's class names**; they are generated and change often.
+- A CSS `li:has(> article …)` rule hides ads instantly (no flash), scoped by the `ahs-on` class on `<html>`. JS also adds `ahs-hide` to ad `<li>`s and to the "Reklámozott termékek" heading block (up to the next `li > h2` heading).
+
+### Part 2: real unit-price sort
+
+- The button loads `?p=1..N` of the current URL with `fetch` and reads the JSON in `<script>{"__listing_StoreState"…}</script>`: `items.elements[]` (`offerId`, `title.text`, `url`, `mainThumbnail`, `price.mainPrice.amount`, `pricePerUnit[0].labelParts[].text`, `parameters[]`, `isSponsored`/`context`/`compliance.label` for ads) and `items.searchMeta.lastAvailablePage`.
+- **Complete or nothing:** if `lastAvailablePage > MAX_PAGES` (10), it refuses and asks the user to narrow the filters. Pages beyond the last one return page 1 again, so always use `lastAvailablePage`.
+- Unit labels: `Ft/kg`, `Ft/100 g`, `Ft/l`, `Ft/100 ml`, `Ft/egység`, normalised by `parseUnit` to kg / l / egység.
+- Bad seller data is common. `suspicious()` compares the pack size implied by Allegro's unit price with the size in the title (`titleQty`, which takes priority because per-bag parameters on multipacks are normal) or else the parameters (`paramQty`). If they differ by more than 20%, the item shows ⚠ and sorts by the size-based price. If it's absurd (>100 kg/l) with no size to correct it, it shows "(hibás?)" and goes last. `egység` (per-piece) prices are not checked.
+- Seller-provided strings go into `innerHTML`, so always pass them through `esc()`, and URLs through `safeUrl()`.
+
+## Testing
+
+- The script runs `console.assert` self-checks for `parseUnit`, `paramQty`, `titleQty` and `suspicious` on load. Run them outside the browser with:
+
+  ```sh
+  node -e "const s=require('fs').readFileSync('allegro-tweaks.user.js','utf8');new Function(s);let f=0;console.assert=(c,m)=>{if(!c){f++;console.log('FAIL',m)}};eval(s.slice(s.indexOf('function parseUnit'),s.indexOf('async function loadPage')));console.log('failed:',f)"
+  ```
+
+- Manual check in the browser with Tampermonkey:
+  - The ads are gone on a category page, page 2 (loaded in place) and a `/kereses` search.
+  - The sort on `https://allegro.hu/kategoria/allateledel-szaraz-tap-90040?marka=Purina&marka=Purina%20ONE&order=ppu` (2 pages) puts the 9.75 kg Purina One bags (≈1610 Ft/kg) near the top, and the "Purina ONE Junior 8x750 g" with wrong data gets ⚠.
+  - A broad search (e.g. `ásványvíz`, 12 pages) is refused.
