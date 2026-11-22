@@ -4,6 +4,7 @@ A Tampermonkey userscript that makes searching on [allegro.hu](https://allegro.h
 
 1. **Hides ads.** Removes "Szponzorált" listings from search and category results. "Reklámozott" listings stay visible: they are real offers that sellers pay to move up, and in price-sorted lists they are in price order and often include the cheapest offer.
 2. **Real unit-price sort.** Adds an **"Egységár ↑ (valódi)"** button to search and category pages. It loads *every* page of the current result list and sorts it by Ft/kg, Ft/l or Ft/db, in its own panel.
+3. **Seller details.** On product pages, adds a line to the seller card with the details from the seller's "Értékelések és vélemények" page: positive and negative rating counts, how long they've been on Allegro, and how many ratings were removed (and how many of those after the seller compensated the buyer). The "Ajánlja 98,7%" alone doesn't tell you whether that's 4 ratings or 50 000.
 
 ## Install
 
@@ -25,6 +26,7 @@ Tampermonkey checks this URL for updates automatically.
 
 ## Limits
 
-- It reads Allegro's internal page data, which can change without notice. If the sort stops working, the ads part keeps working independently.
+- It reads Allegro's internal page data, which can change without notice. If the sort stops working, the ads part keeps working independently. If the seller line can't be read, it simply doesn't appear.
+- The seller line costs one extra page load per product page you open.
 - The size check reads common title patterns ("2x900ml", "330 ml - 24 db", "6x … 1,4 kg"). Unusual titles can cause false ⚠ marks; they are shown, never hidden.
 - Loading many pages quickly can trigger Allegro's captcha. Pages are loaded one at a time with a short pause; if a captcha appears, the script stops with a message.

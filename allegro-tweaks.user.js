@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Allegro.hu tweaks
 // @namespace    https://github.com/speedymaan/allegro-tweaks
-// @version      2.1.0
-// @description  Hides "Szponzorált" ads and adds a real unit-price sort for filtered allegro.hu result lists.
+// @version      2.2.0
+// @description  Hides "Szponzorált" ads, adds a real unit-price sort for filtered allegro.hu result lists, and shows seller rating details on product pages.
 // @homepageURL  https://github.com/speedymaan/allegro-tweaks
 // @updateURL    https://raw.githubusercontent.com/speedymaan/allegro-tweaks/main/allegro-tweaks.user.js
 // @downloadURL  https://raw.githubusercontent.com/speedymaan/allegro-tweaks/main/allegro-tweaks.user.js
@@ -50,7 +50,9 @@
     #aus-panel img { width: 56px; height: 56px; object-fit: contain; }
     #aus-panel .aus-ppu { font-weight: 700; text-align: right; white-space: nowrap; }
     #aus-panel .aus-price { color: #555; font-weight: 400; display: block; }
-    #aus-panel .aus-bad { color: #b00; }`;
+    #aus-panel .aus-bad { color: #b00; }
+    .ats-seller { margin: 8px 0; font-size: 14px; }
+    .ats-seller:empty { display: none; }`;
   (document.head || document.documentElement).appendChild(style);
 
   function isAdArticle(article) {
@@ -70,6 +72,7 @@
   }
 
   function update() {
+    if (isProductPage()) addSellerInfo();
     const on = isListingPage();
     document.documentElement.classList.toggle(ON_CLASS, on);
     if (!on) return;
@@ -82,7 +85,54 @@
     for (const el of hide) el.classList.add(HIDE_CLASS);
   }
 
-  // ───────────── Part 2: real unit-price sort ─────────────
+  // ───────────── Part 2: seller details on product pages ─────────────
+  // The seller's ratings page (/felhasznalo/<login>/ertekeles) has the numbers behind Allegro's
+  // "Ajánlja 98,7%" under stable data-testid names. One fetch per seller per page load.
+  const isProductPage = () => location.pathname.startsWith('/termek/');
+  const sellerCache = new Map(); // ratings URL → Promise<line text>
+
+  // get(testid) → that element's text or null. Returns '' when the page has no rating counts.
+  function sellerLine(get) {
+    const pos = get('recommended-total'), neg = get('not-recommended-total');
+    if (!pos || !neg) return '';
+    const parts = [`👍 ${pos}`, `👎 ${neg}`];
+    const age = get('account-details')?.replace(/^az Allegrón\s*/, '');
+    if (age) parts.push(`${age} az Allegrón`);
+    const rem = get('removed-and-excluded-ratings-detailed') || '';
+    const removed = rem.match(/(\d+) eltávolított/), comp = rem.match(/ebből (\d+) kompenzáció/);
+    if (removed) parts.push(`${removed[1]} eltávolított értékelés` + (comp ? ` (${comp[1]} kompenzáció után)` : ''));
+    return parts.join(' · ');
+  }
+  const T = o => id => o[id] ?? null;
+  console.assert(sellerLine(T({ 'recommended-total': '50302', 'not-recommended-total': '669',
+    'account-details': 'az Allegrón9 év és 4 hónap felett',
+    'removed-and-excluded-ratings-detailed': '150 eltávolított értékelés (3 az Allegro által, 147 a vevők által, ebből 49 kompenzációt követően)Az Allegro…520 kizárt értékelés' }))
+    === '👍 50302 · 👎 669 · 9 év és 4 hónap felett az Allegrón · 150 eltávolított értékelés (49 kompenzáció után)', 'sellerLine full');
+  console.assert(sellerLine(T({ 'recommended-total': '3', 'not-recommended-total': '0' })) === '👍 3 · 👎 0', 'sellerLine minimal');
+  console.assert(sellerLine(T({})) === '', 'sellerLine no data');
+
+  function addSellerInfo() {
+    const box = document.querySelector('[data-box-name="Seller summary container"]');
+    const link = box?.querySelector('a[href*="/felhasznalo/"]');
+    if (!link) return;
+    const url = link.pathname.split('/').slice(0, 3).join('/') + '/ertekeles'; // "/felhasznalo/<login>/…" → ratings page
+    if (box.querySelector('.ats-seller')?.dataset.url === url) return;
+    box.querySelector('.ats-seller')?.remove();
+    const el = document.createElement('p');
+    el.className = 'ats-seller';
+    el.dataset.url = url;
+    const hr = box.querySelector('aside > hr'); // divider under the seller name, inside the white card
+    hr ? hr.before(el) : box.append(el);
+    if (!sellerCache.has(url)) {
+      sellerCache.set(url, fetch(url, { credentials: 'include' }).then(r => r.text()).then(html => {
+        const d = new DOMParser().parseFromString(html, 'text/html');
+        return sellerLine(id => d.querySelector(`[data-testid="${id}"]`)?.textContent.replace(/\s+/g, ' ').trim() || null);
+      }).catch(() => '')); // on any failure show nothing rather than break the product page
+    }
+    sellerCache.get(url).then(text => { el.textContent = text; });
+  }
+
+  // ───────────── Part 3: real unit-price sort ─────────────
   // Loads every page of the current (filtered) result list and sorts by unit price.
   // Complete or nothing: above MAX_PAGES it refuses instead of sorting a partial list.
   const MAX_PAGES = 10;
