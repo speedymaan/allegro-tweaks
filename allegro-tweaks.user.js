@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Allegro.hu tweaks
 // @namespace    https://github.com/speedymaan/allegro-tweaks
-// @version      2.2.1
+// @version      2.2.2
 // @description  Hides "Szponzorált" ads, adds a real unit-price sort for filtered allegro.hu result lists, and shows seller rating details on product pages.
 // @homepageURL  https://github.com/speedymaan/allegro-tweaks
 // @updateURL    https://raw.githubusercontent.com/speedymaan/allegro-tweaks/main/allegro-tweaks.user.js
@@ -92,7 +92,7 @@
   // ───────────── Part 2: seller details on product pages ─────────────
   // The seller's ratings page (/felhasznalo/<login>/ertekeles) has the numbers behind Allegro's
   // "Ajánlja 98,7%" under stable data-testid names. One fetch per seller per page load.
-  const isProductPage = () => location.pathname.startsWith('/termek/');
+  const isProductPage = () => /^\/(termek|ajanlat)\//.test(location.pathname); // product page / single offer page
   const sellerCache = new Map(); // ratings URL → Promise<line text>
 
   // get(testid) → that element's text or null. Returns {pos, neg, details}, or null when the page has no rating counts.
