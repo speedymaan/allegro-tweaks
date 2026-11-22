@@ -10,6 +10,8 @@ Guidance for Claude (and humans) working on this repo.
 
 `allegro-tweaks.user.js` is a single Tampermonkey userscript for allegro.hu (repo: https://github.com/speedymaan/allegro-tweaks). It has no build step and no dependencies. Tampermonkey auto-updates from the raw GitHub URL in `@updateURL`.
 
+The repo is worked on from both Windows and macOS. `.gitattributes` (`* text=auto eol=lf`) keeps every text file LF in the repo and in the working copy on both, whatever each machine's `core.autocrlf` says.
+
 It runs on all `https://allegro.hu/*` pages. Parts 1 and 3 are active only on search (`/kereses…`) and category (`/kategoria/…`) paths, Part 2 only on product pages (`/termek/…`). Allegro navigates without full reloads, so a `MutationObserver` re-checks the page after every DOM change, batched with `queueMicrotask`. Don't use `requestAnimationFrame`: it doesn't fire in background tabs.
 
 ### Part 1: hide ads
