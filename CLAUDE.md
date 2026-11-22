@@ -14,12 +14,13 @@ It runs on all `https://allegro.hu/*` pages and is active only on search (`/kere
 
 ### Part 1: hide ads
 
-- Ads are detected by the label button `button[aria-label^="Szponzorált"]` / `[aria-label^="Reklámozott"]` inside each `<article>`, with the exact visible label text as a fallback. **Never rely on Allegro's class names**; they are generated and change often.
-- A CSS `li:has(> article …)` rule hides ads instantly (no flash), scoped by the `ahs-on` class on `<html>`. JS also adds `ahs-hide` to ad `<li>`s and to the "Reklámozott termékek" heading block (up to the next `li > h2` heading).
+- Only **"Szponzorált"** items are ads. They are detected by the label button `button[aria-label^="Szponzorált"]` inside each `<article>`, with the exact visible label text as a fallback. **Never rely on Allegro's class names**; they are generated and change often.
+- **Do not hide "Reklámozott" items** (JSON `context: "PROMOTED"`). They are real offers that sellers pay to move up. In price-sorted category lists, Allegro puts all of them first in a "Reklámozott termékek" block sorted by price, then the normal items ("Termékek", `context: "REGULAR"`) sorted by price. The Reklámozott block can fill several pages and often holds the cheapest offer (checked on the 1 kg coffee-bean filter: cheapest Reklámozott 3320 Ft on page 1, cheapest normal 3590 Ft on page 6). Versions before 2.1.0 hid them, which was a bug.
+- A CSS `li:has(> article …)` rule hides ads instantly (no flash), scoped by the `ahs-on` class on `<html>`. JS also adds `ahs-hide` to ad `<li>`s.
 
 ### Part 2: real unit-price sort
 
-- The button loads `?p=1..N` of the current URL with `fetch` and reads the JSON in `<script>{"__listing_StoreState"…}</script>`: `items.elements[]` (`offerId`, `title.text`, `url`, `mainThumbnail`, `price.mainPrice.amount`, `pricePerUnit[0].labelParts[].text`, `parameters[]`, `isSponsored`/`context`/`compliance.label` for ads) and `items.searchMeta.lastAvailablePage`.
+- The button loads `?p=1..N` of the current URL with `fetch` and reads the JSON in `<script>{"__listing_StoreState"…}</script>`: `items.elements[]` (`offerId`, `title.text`, `url`, `mainThumbnail`, `price.mainPrice.amount`, `pricePerUnit[0].labelParts[].text`, `parameters[]`, `isSponsored` / `context === "SPONSORED"` for ads; `compliance.label` is also set on "Reklámozott" items, so don't use it) and `items.searchMeta.lastAvailablePage`.
 - **Complete or nothing:** if `lastAvailablePage > MAX_PAGES` (10), it refuses and asks the user to narrow the filters. Pages beyond the last one return page 1 again, so always use `lastAvailablePage`.
 - Unit labels: `Ft/kg`, `Ft/100 g`, `Ft/l`, `Ft/100 ml`, `Ft/egység`, normalised by `parseUnit` to kg / l / egység.
 - Bad seller data is common. `suspicious()` compares the pack size implied by Allegro's unit price with the size in the title (`titleQty`, which takes priority because per-bag parameters on multipacks are normal) or else the parameters (`paramQty`). If they differ by more than 20%, the item shows ⚠ and sorts by the size-based price. If it's absurd (>100 kg/l) with no size to correct it, it shows "(hibás?)" and goes last. `egység` (per-piece) prices are not checked.
@@ -34,6 +35,7 @@ It runs on all `https://allegro.hu/*` pages and is active only on search (`/kere
   ```
 
 - Manual check in the browser with Tampermonkey:
-  - The ads are gone on a category page, page 2 (loaded in place) and a `/kereses` search.
+  - The "Szponzorált" ads are gone on a category page, page 2 (loaded in place) and a `/kereses` search.
+  - On `https://allegro.hu/kategoria/kave-szemes-kave-74035?csomagolas-merete=1000%20g&allegro-smart-standard=1&order=p`, page 1 shows its ~60 "Reklámozott" offers and hides only the 4 "Szponzorált" ones.
   - The sort on `https://allegro.hu/kategoria/allateledel-szaraz-tap-90040?marka=Purina&marka=Purina%20ONE&order=ppu` (2 pages) puts the 9.75 kg Purina One bags (≈1610 Ft/kg) near the top, and the "Purina ONE Junior 8x750 g" with wrong data gets ⚠.
   - A broad search (e.g. `ásványvíz`, 12 pages) is refused.

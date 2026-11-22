@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Allegro.hu tweaks
 // @namespace    https://github.com/speedymaan/allegro-tweaks
-// @version      2.0.0
-// @description  Hides "Szponzorált"/"Reklámozott" listings and adds a real unit-price sort for filtered allegro.hu result lists.
+// @version      2.1.0
+// @description  Hides "Szponzorált" ads and adds a real unit-price sort for filtered allegro.hu result lists.
 // @homepageURL  https://github.com/speedymaan/allegro-tweaks
 // @updateURL    https://raw.githubusercontent.com/speedymaan/allegro-tweaks/main/allegro-tweaks.user.js
 // @downloadURL  https://raw.githubusercontent.com/speedymaan/allegro-tweaks/main/allegro-tweaks.user.js
@@ -16,9 +16,11 @@
 
   // ───────────── Part 1: hide ads ─────────────
   // Allegro's class names are generated and change often, so nothing relies on them.
-  // Ads are recognised by their label button ("Szponzorált tipp megjelenítése" etc.),
+  // Ads are recognised by their label button ("Szponzorált tipp megjelenítése"),
   // with the visible label text as a fallback.
-  const AD_WORDS = ['Szponzorált', 'Reklámozott'];
+  // "Reklámozott" items are NOT hidden: in price-sorted lists they are real offers in price order,
+  // often including the cheapest one. Only "Szponzorált" items are inserted out of order.
+  const AD_WORDS = ['Szponzorált'];
   const ON_CLASS = 'ahs-on';     // set on <html> while on a search/category page
   const HIDE_CLASS = 'ahs-hide'; // set on each list item we hide
 
@@ -59,25 +61,10 @@
     return false;
   }
 
-  // A section heading is a list item whose direct child is an <h2>
-  // (product titles are <h2>s too, but they sit inside <article>).
-  const headingOf = li => li.querySelector(':scope > h2');
-
   function collectHidden() {
     const hide = new Set();
     for (const article of document.querySelectorAll('article')) {
       if (isAdArticle(article)) hide.add(article.closest('li') || article);
-    }
-    // The "Reklámozott termékek" heading plus its block up to the next heading,
-    // but never an unlabelled product.
-    for (const li of document.querySelectorAll('li')) {
-      const h2 = headingOf(li);
-      if (!h2 || !AD_WORDS.some(w => h2.textContent.trim().startsWith(w))) continue;
-      hide.add(li);
-      for (let sib = li.nextElementSibling; sib && !headingOf(sib); sib = sib.nextElementSibling) {
-        const article = sib.querySelector('article');
-        if (!article || isAdArticle(article)) hide.add(sib);
-      }
     }
     return hide;
   }
@@ -251,7 +238,7 @@
     for (const e of elements) {
       if (!e.offerId || seen.has(e.offerId)) continue;
       seen.add(e.offerId);
-      if (e.isSponsored || e.context === 'SPONSORED' || e.compliance?.label) { ads++; continue; }
+      if (e.isSponsored || e.context === 'SPONSORED') { ads++; continue; } // "Reklámozott" (PROMOTED) stays: real offers
       const price = parseFloat(e.price?.mainPrice?.amount);
       const unit = parseUnit(e.pricePerUnit?.[0]?.labelParts?.map(p => p.text).join(''));
       if (!unit || !price) { noUnit++; continue; }
