@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Allegro.hu tweaks
 // @namespace    https://github.com/speedymaan/allegro-tweaks
-// @version      2.2.0
+// @version      2.2.1
 // @description  Hides "Szponzorált" ads, adds a real unit-price sort for filtered allegro.hu result lists, and shows seller rating details on product pages.
 // @homepageURL  https://github.com/speedymaan/allegro-tweaks
 // @updateURL    https://raw.githubusercontent.com/speedymaan/allegro-tweaks/main/allegro-tweaks.user.js
@@ -51,8 +51,12 @@
     #aus-panel .aus-ppu { font-weight: 700; text-align: right; white-space: nowrap; }
     #aus-panel .aus-price { color: #555; font-weight: 400; display: block; }
     #aus-panel .aus-bad { color: #b00; }
-    .ats-seller { margin: 8px 0; font-size: 14px; }
-    .ats-seller:empty { display: none; }`;
+    .ats-seller { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 16px; margin-top: 8px; }
+    .ats-seller:empty { display: none; }
+    .ats-seller > span { display: inline-flex; align-items: center; gap: 4px; }
+    .ats-seller .ats-up { color: #2e9e44; }
+    .ats-seller .ats-down { color: #e0452b; }
+    .ats-seller .ats-details { flex-basis: 100%; opacity: .62; }`;
   (document.head || document.documentElement).appendChild(style);
 
   function isAdArticle(article) {
@@ -91,25 +95,31 @@
   const isProductPage = () => location.pathname.startsWith('/termek/');
   const sellerCache = new Map(); // ratings URL → Promise<line text>
 
-  // get(testid) → that element's text or null. Returns '' when the page has no rating counts.
-  function sellerLine(get) {
-    const pos = get('recommended-total'), neg = get('not-recommended-total');
-    if (!pos || !neg) return '';
-    const parts = [`👍 ${pos}`, `👎 ${neg}`];
+  // get(testid) → that element's text or null. Returns {pos, neg, details}, or null when the page has no rating counts.
+  function sellerInfo(get) {
+    const pos = parseInt(get('recommended-total')), neg = parseInt(get('not-recommended-total'));
+    if (Number.isNaN(pos) || Number.isNaN(neg)) return null;
+    const parts = [];
     const age = get('account-details')?.replace(/^az Allegrón\s*/, '');
     if (age) parts.push(`${age} az Allegrón`);
     const rem = get('removed-and-excluded-ratings-detailed') || '';
     const removed = rem.match(/(\d+) eltávolított/), comp = rem.match(/ebből (\d+) kompenzáció/);
-    if (removed) parts.push(`${removed[1]} eltávolított értékelés` + (comp ? ` (${comp[1]} kompenzáció után)` : ''));
-    return parts.join(' · ');
+    if (removed) parts.push(`${removed[1]} eltávolított értékelés` + (comp ? `, ebből ${comp[1]} kompenzáció után` : ''));
+    return { pos, neg, details: parts.join(' · ') };
   }
   const T = o => id => o[id] ?? null;
-  console.assert(sellerLine(T({ 'recommended-total': '50302', 'not-recommended-total': '669',
+  console.assert(JSON.stringify(sellerInfo(T({ 'recommended-total': '50302', 'not-recommended-total': '669',
     'account-details': 'az Allegrón9 év és 4 hónap felett',
-    'removed-and-excluded-ratings-detailed': '150 eltávolított értékelés (3 az Allegro által, 147 a vevők által, ebből 49 kompenzációt követően)Az Allegro…520 kizárt értékelés' }))
-    === '👍 50302 · 👎 669 · 9 év és 4 hónap felett az Allegrón · 150 eltávolított értékelés (49 kompenzáció után)', 'sellerLine full');
-  console.assert(sellerLine(T({ 'recommended-total': '3', 'not-recommended-total': '0' })) === '👍 3 · 👎 0', 'sellerLine minimal');
-  console.assert(sellerLine(T({})) === '', 'sellerLine no data');
+    'removed-and-excluded-ratings-detailed': '150 eltávolított értékelés (3 az Allegro által, 147 a vevők által, ebből 49 kompenzációt követően)Az Allegro…520 kizárt értékelés' })))
+    === JSON.stringify({ pos: 50302, neg: 669, details: '9 év és 4 hónap felett az Allegrón · 150 eltávolított értékelés, ebből 49 kompenzáció után' }), 'sellerInfo full');
+  console.assert(JSON.stringify(sellerInfo(T({ 'recommended-total': '3', 'not-recommended-total': '0' }))) === '{"pos":3,"neg":0,"details":""}', 'sellerInfo minimal');
+  console.assert(sellerInfo(T({})) === null, 'sellerInfo no data');
+
+  const THUMB = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"%T><path fill="currentColor" d="M9 21h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.58 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2zM9 9l4.34-4.34L12 10h9v2l-3 7H9V9zM1 9h4v12H1z"/></svg>';
+  const sellerHtml = ({ pos, neg, details }) =>
+    `<span class="ats-up" title="pozitív értékelés">${THUMB.replace('%T', '')}<b>${esc(fmt(pos))}</b></span>` +
+    `<span class="ats-down" title="negatív értékelés">${THUMB.replace('%T', ' style="transform:rotate(180deg)"')}<b>${esc(fmt(neg))}</b></span>` +
+    (details ? `<span class="ats-details">${esc(details)}</span>` : '');
 
   function addSellerInfo() {
     const box = document.querySelector('[data-box-name="Seller summary container"]');
@@ -118,18 +128,18 @@
     const url = link.pathname.split('/').slice(0, 3).join('/') + '/ertekeles'; // "/felhasznalo/<login>/…" → ratings page
     if (box.querySelector('.ats-seller')?.dataset.url === url) return;
     box.querySelector('.ats-seller')?.remove();
-    const el = document.createElement('p');
+    const el = document.createElement('div');
     el.className = 'ats-seller';
     el.dataset.url = url;
-    const hr = box.querySelector('aside > hr'); // divider under the seller name, inside the white card
-    hr ? hr.before(el) : box.append(el);
+    // The block with the seller name: inherits its font and padding. Fallback: end of the card.
+    (box.querySelector('aside > div') || box).append(el);
     if (!sellerCache.has(url)) {
       sellerCache.set(url, fetch(url, { credentials: 'include' }).then(r => r.text()).then(html => {
         const d = new DOMParser().parseFromString(html, 'text/html');
-        return sellerLine(id => d.querySelector(`[data-testid="${id}"]`)?.textContent.replace(/\s+/g, ' ').trim() || null);
-      }).catch(() => '')); // on any failure show nothing rather than break the product page
+        return sellerInfo(id => d.querySelector(`[data-testid="${id}"]`)?.textContent.replace(/\s+/g, ' ').trim() || null);
+      }).catch(() => null)); // on any failure show nothing rather than break the product page
     }
-    sellerCache.get(url).then(text => { el.textContent = text; });
+    sellerCache.get(url).then(info => { if (info) el.innerHTML = sellerHtml(info); });
   }
 
   // ───────────── Part 3: real unit-price sort ─────────────
