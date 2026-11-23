@@ -12,7 +12,7 @@ Guidance for Claude (and humans) working on this repo.
 
 The repo is worked on from both Windows and macOS. `.gitattributes` (`* text=auto eol=lf`) keeps every text file LF in the repo and in the working copy on both, whatever each machine's `core.autocrlf` says.
 
-It runs on all `https://allegro.hu/*` pages. Parts 1 and 3 are active only on search (`/kereses…`) and category (`/kategoria/…`) paths, Part 2 only on product pages, which come in two URL forms with the same seller card: `/termek/…?offerId=…` and `/ajanlat/…`. Allegro navigates without full reloads, so a `MutationObserver` re-checks the page after every DOM change, batched with `queueMicrotask`. Don't use `requestAnimationFrame`: it doesn't fire in background tabs.
+It runs on all `https://allegro.hu/*` pages. Parts 1 and 3 are active only on search (`/kereses…`), category (`/kategoria/…`) and seller-shop category (`/felhasznalo/<login>/<category>`, assumed to use the same listing JSON; unverified, Allegro returns 403 to non-browser clients) paths, Part 2 only on product pages, which come in two URL forms with the same seller card: `/termek/…?offerId=…` and `/ajanlat/…`. Allegro navigates without full reloads, so a `MutationObserver` re-checks the page after every DOM change, batched with `queueMicrotask`. Don't use `requestAnimationFrame`: it doesn't fire in background tabs.
 
 ### Part 1: hide ads
 

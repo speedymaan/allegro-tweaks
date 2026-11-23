@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Allegro.hu tweaks
 // @namespace    https://github.com/speedymaan/allegro-tweaks
-// @version      2.2.2
+// @version      2.2.3
 // @description  Hides "Szponzorált" ads, adds a real unit-price sort for filtered allegro.hu result lists, and shows seller rating details on product pages.
 // @homepageURL  https://github.com/speedymaan/allegro-tweaks
 // @updateURL    https://raw.githubusercontent.com/speedymaan/allegro-tweaks/main/allegro-tweaks.user.js
@@ -25,7 +25,7 @@
   const HIDE_CLASS = 'ahs-hide'; // set on each list item we hide
 
   // The site navigates without full reloads, so this is re-checked constantly.
-  const isListingPage = () => /^\/(kereses|kategoria\/)/.test(location.pathname);
+  const isListingPage = () => /^\/(kereses|kategoria\/|felhasznalo\/[^/]+\/[^/]+)/.test(location.pathname);
 
   const labelSel = AD_WORDS.map(w => `button[aria-label^="${w}"]`);
   const style = document.createElement('style');
