@@ -12,7 +12,7 @@ Guidance for Claude (and humans) working on this repo.
 
 The repo is worked on from both Windows and macOS. `.gitattributes` (`* text=auto eol=lf`) keeps every text file LF in the repo and in the working copy on both, whatever each machine's `core.autocrlf` says.
 
-It runs on all `https://allegro.hu/*` pages. Parts 1 and 3 are active only on search (`/kereses…`), category (`/kategoria/…`) and seller-shop category (`/felhasznalo/<login>/<category>`, assumed to use the same listing JSON; unverified, Allegro returns 403 to non-browser clients) paths, Part 2 only on product pages, which come in two URL forms with the same seller card: `/termek/…?offerId=…` and `/ajanlat/…`. Allegro navigates without full reloads, so a `MutationObserver` re-checks the page after every DOM change, batched with `queueMicrotask`. Don't use `requestAnimationFrame`: it doesn't fire in background tabs.
+It runs on all `https://allegro.hu/*` pages. Parts 1 and 3 are active only on search (`/kereses…`), category (`/kategoria/…`) and seller-shop category (`/felhasznalo/<login>/<category>`; same listing JSON as category pages, checked in the browser on 2.2.3) paths, Part 2 only on product pages, which come in two URL forms with the same seller card: `/termek/…?offerId=…` and `/ajanlat/…`. Allegro navigates without full reloads, so a `MutationObserver` re-checks the page after every DOM change, batched with `queueMicrotask`. Don't use `requestAnimationFrame`: it doesn't fire in background tabs.
 
 ### Part 1: hide ads
 
@@ -48,4 +48,5 @@ It runs on all `https://allegro.hu/*` pages. Parts 1 and 3 are active only on se
   - On `https://allegro.hu/kategoria/kave-szemes-kave-74035?csomagolas-merete=1000%20g&allegro-smart-standard=1&order=p`, page 1 shows its ~60 "Reklámozott" offers and hides only the 4 "Szponzorált" ones.
   - The sort on `https://allegro.hu/kategoria/allateledel-szaraz-tap-90040?marka=Purina&marka=Purina%20ONE&order=ppu` (2 pages) puts the 9.75 kg Purina One bags (≈1610 Ft/kg) near the top, and the "Purina ONE Junior 8x750 g" with wrong data gets ⚠.
   - A broad search (e.g. `ásványvíz`, 12 pages) is refused.
+  - On `https://allegro.hu/felhasznalo/Kawusiajacobsa/kave-szemes-kave-74035?csomagolas-merete=1000%20g&order=p` (seller-shop category) the sort button appears and lists the 19 items by Ft/kg.
   - On `https://allegro.hu/termek/sodastream-terra-feketeviz-szodakeszito-gep-fuse-1l-palack-gaz-db336b60-1528-42c7-becb-074fbf8a2b4f?offerId=12908146605` the seller card shows the green 👍 / red 👎 counts and the muted details line under "Ajánlja …%", in the card's own font, matching `https://allegro.hu/felhasznalo/esiteo_pl/ertekeles`. Also check an `/ajanlat/` page, e.g. `https://allegro.hu/ajanlat/purina-one-sterilcat-beef-wheat-szaraz-macskaeledel-9-75kg-marhahus-18678856831`.
