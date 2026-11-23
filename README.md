@@ -2,8 +2,8 @@
 
 A Tampermonkey userscript that makes searching on [allegro.hu](https://allegro.hu) better:
 
-1. **Hides ads.** Removes "Szponzorált" listings from search and category results. "Reklámozott" listings stay visible: they are real offers that sellers pay to move up, and in price-sorted lists they are in price order and often include the cheapest offer.
-2. **Real unit-price sort.** Adds an **"Egységár ↑ (valódi)"** button to search and category pages. It loads *every* page of the current result list and sorts it by Ft/kg, Ft/l or Ft/db, in its own panel.
+1. **Hides ads.** Removes "Szponzorált" listings from search, category and seller-shop category results. "Reklámozott" listings stay visible: they are real offers that sellers pay to move up, and in price-sorted lists they are in price order and often include the cheapest offer.
+2. **Real unit-price sort.** Adds an **"Egységár ↑ (valódi)"** button to search, category and seller-shop category pages. It loads *every* page of the current result list and sorts it by Ft/kg, Ft/l or Ft/db, in its own panel.
 3. **Seller details.** On product pages, adds the details from the seller's "Értékelések és vélemények" page to the seller card: positive (green) and negative (red) rating counts, how long they've been on Allegro, and how many ratings were removed (and how many of those after the seller compensated the buyer). The "Ajánlja 98,7%" alone doesn't tell you whether that's 4 ratings or 50 000.
 
 ## Install
